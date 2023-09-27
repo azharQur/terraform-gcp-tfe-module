@@ -27,13 +27,14 @@ resource "google_service_account_key" "key" {
 }
 
 resource "google_project_iam_member" "log_writer" {
-  count  = var.existing_service_account_id == null ? 1 : 0
-  member = local.member
-  role   = "roles/logging.logWriter"
+  count   = var.existing_service_account_id == null ? 1 : 0
+  member  = local.member
+  role    = "roles/logging.logWriter"
+  project = "prj-c-tfe-ba9a"
 }
 
 resource "google_secret_manager_secret_iam_member" "license_secret" {
-  count     = var.enable_airgap ? 0 : 1
+  //count     = var.enable_airgap ? 0 : 1
   member    = local.member
   role      = "roles/secretmanager.secretAccessor"
   secret_id = var.tfe_license_secret_id

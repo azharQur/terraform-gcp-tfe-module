@@ -2,8 +2,7 @@
 # SPDX-License-Identifier: MPL-2.0
 
 module "project_factory_project_services" {
-  source  = "terraform-google-modules/project-factory/google//modules/project_services"
-  version = "~> 11.2"
+  source = "./modules/project_services"
 
   project_id = null
 
@@ -105,7 +104,7 @@ module "redis" {
 # TFE and Replicated settings to pass to the tfe_init module
 # -----------------------------------------------------------------------------
 module "settings" {
-  source = "git::https://github.com/hashicorp/terraform-random-tfe-utility//modules/settings?ref=main"
+  source = "./modules/settings"
 
   # TFE Base Configuration
   consolidated_services       = var.consolidated_services
@@ -176,17 +175,18 @@ module "settings" {
 # User data / cloud init used to install and configure TFE on instance(s)
 # -----------------------------------------------------------------------------
 module "tfe_init" {
-  source = "git::https://github.com/hashicorp/terraform-random-tfe-utility//modules/tfe_init?ref=main"
+  source = "./modules/tfe_init"
 
   # TFE & Replicated Configuration data
-  cloud                    = "google"
-  distribution             = var.distribution
-  disk_path                = var.disk_path
-  disk_device_name         = local.disk_device_name
-  tfe_configuration        = module.settings.tfe_configuration
-  replicated_configuration = module.settings.replicated_configuration
-  airgap_url               = var.airgap_url
-  enable_monitoring        = var.enable_monitoring
+  cloud                           = "google"
+  distribution                    = var.distribution
+  disk_path                       = var.disk_path
+  disk_device_name                = local.disk_device_name
+  tfe_configuration               = module.settings.tfe_configuration
+  replicated_configuration        = module.settings.replicated_configuration
+  airgap_url                      = var.airgap_url
+  tfe_airgap_file_bucket_location = var.tfe_airgap_file_bucket_location
+  enable_monitoring               = var.enable_monitoring
 
   # Secrets
   ca_certificate_secret_id = var.ca_certificate_secret_id == null ? null : var.ca_certificate_secret_id
@@ -200,8 +200,7 @@ module "tfe_init" {
 }
 
 module "vm_instance_template" {
-  source  = "terraform-google-modules/vm/google//modules/instance_template"
-  version = "~> 7.1"
+  source = "./modules/instance_template"
 
   name_prefix = "${var.namespace}-tfe-template-"
 
@@ -236,8 +235,7 @@ module "vm_instance_template" {
 }
 
 module "vm_mig" {
-  source  = "terraform-google-modules/vm/google//modules/mig"
-  version = "~> 7.1"
+  source = "./modules/mig"
 
   instance_template = module.vm_instance_template.self_link
   region            = null
@@ -255,6 +253,7 @@ module "vm_mig" {
     timeout_sec         = 10
     type                = "https"
     unhealthy_threshold = var.vm_mig_unhealthy_threshold
+    enable_logging      = false
   }
   health_check_name = "${var.namespace}-tfe-health-check"
   hostname          = "${var.namespace}-tfe"
@@ -274,8 +273,6 @@ module "vm_mig" {
 }
 
 resource "google_compute_address" "private" {
-  count = var.load_balancer != "PUBLIC" ? 1 : 0
-
   name         = "${var.namespace}-tfe-private-lb"
   subnetwork   = local.subnetwork.self_link
   address_type = "INTERNAL"
@@ -294,7 +291,8 @@ module "private_load_balancer" {
   labels               = var.labels
   subnetwork           = local.subnetwork
   dns_create_record    = var.dns_create_record
-  ip_address           = google_compute_address.private[0].address
+  ip_address           = google_compute_address.private.address
+  dns_zone_project     = "prj-c-svpc-restricted-e061"
 }
 
 module "private_tcp_load_balancer" {
@@ -308,28 +306,6 @@ module "private_tcp_load_balancer" {
   labels            = var.labels
   subnetwork        = local.subnetwork
   dns_create_record = var.dns_create_record
-  ip_address        = google_compute_address.private[0].address
-}
-
-
-resource "google_compute_global_address" "public" {
-  count = var.load_balancer == "PUBLIC" ? 1 : 0
-
-  name = "${var.namespace}-tfe-public-lb"
-
-  description = "The global address of the public load balancer for TFE."
-}
-
-module "load_balancer" {
-  count  = var.load_balancer == "PUBLIC" ? 1 : 0
-  source = "./modules/load_balancer"
-
-  labels               = var.labels
-  namespace            = var.namespace
-  fqdn                 = local.full_fqdn
-  instance_group       = module.vm_mig.instance_group
-  ssl_certificate_name = var.ssl_certificate_name
-  dns_zone_name        = var.dns_zone_name
-  dns_create_record    = var.dns_create_record
-  ip_address           = google_compute_global_address.public[0].address
+  ip_address        = google_compute_address.private.address
+  dns_zone_project  = "prj-c-svpc-restricted-e061"
 }

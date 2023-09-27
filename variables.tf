@@ -79,12 +79,12 @@ variable "proxy_port" {
 # -----------
 variable "load_balancer" {
   default     = "PRIVATE"
-  description = "Load Balancing Scheme. Supported values are: \"PRIVATE\"; \"PRIVATE_TCP\"; \"PUBLIC\"."
+  description = "Load Balancing Scheme. Supported values are: \"PRIVATE\"; \"PRIVATE_TCP\"."
   type        = string
 
   validation {
-    condition     = contains(["PRIVATE", "PRIVATE_TCP", "PUBLIC"], var.load_balancer)
-    error_message = "The load_balancer value must be one of: \"PRIVATE\"; \"PRIVATE_TCP\"; \"PUBLIC\"."
+    condition     = contains(["PRIVATE", "PRIVATE_TCP"], var.load_balancer)
+    error_message = "The load_balancer value must be one of: \"PRIVATE\"; \"PRIVATE_TCP\"."
   }
 }
 
@@ -404,7 +404,7 @@ variable "release_sequence" {
 
 variable "ssl_certificate_name" {
   default     = null
-  description = "Name of the created managed SSL certificate. Required when load_balancer == \"PUBLIC\" or load_balancer == \"PRIVATE\"."
+  description = "Name of the created managed SSL certificate. Required when load_balancer == \"PRIVATE\"."
   type        = string
 }
 
@@ -432,6 +432,13 @@ variable "tfe_license_bootstrap_airgap_package_path" {
   description = <<-EOD
   (Required if air-gapped installation) The URL of a Replicated airgap package for Terraform
   Enterprise. The suggested path is "/var/lib/ptfe/ptfe.airgap".
+  EOD
+}
+
+variable "tfe_airgap_file_bucket_location" {
+  type        = string
+  description = <<-EOD
+  Bucket location for airgap file
   EOD
 }
 
